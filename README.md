@@ -1,4 +1,4 @@
-# 🚀 ReyadBuilder — Free Drag & Drop HTML Visual Page Builder & Editor
+# 🚀 ReyadBuilder | Free Drag & Drop HTML Visual Page Builder & Editor
 ### محرر صفحات ويب مرئي من تطوير Mohamed Reyad مع السحب والإفلات وتصدير HTML & PDF
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-Try_Online-0ea5e9?style=for-the-badge&logo=googlechrome&logoColor=white)](https://reyad-dev.github.io/html-visual-builder/)
@@ -138,18 +138,18 @@ npm run lint
 
 ## 📦 Project Scripts | أوامر المشروع
 
-- `npm run dev` — Launches Vite local dev server with HMR.
-- `npm run build` — Compiles TypeScript and creates optimized production bundle.
-- `npm run test` — Executes all Vitest suites.
-- `npm run typecheck` — Typechecks codebase with strict TypeScript compiler.
-- `npm run lint` — Lints project files with ESLint.
-- `npm run format` — Formats codebase using Prettier.
+- `npm run dev` - Launches Vite local dev server with HMR.
+- `npm run build` - Compiles TypeScript and creates optimized production bundle.
+- `npm run test` - Executes all Vitest suites.
+- `npm run typecheck` - Typechecks codebase with strict TypeScript compiler.
+- `npm run lint` - Lints project files with ESLint.
+- `npm run format` - Formats codebase using Prettier.
 
 ---
 
 ## 👤 Author & Maintainer | المطور
 
-**Mohamed Reyad (@reyad-dev)** — Creator of **ReyadBuilder**  
+**Mohamed Reyad (@reyad-dev)** | Creator of **ReyadBuilder**  
 - **GitHub:** [@reyad-dev](https://github.com/reyad-dev)  
 - **Focus:** Web Design, AI-Assisted Development & Architecture  
 
