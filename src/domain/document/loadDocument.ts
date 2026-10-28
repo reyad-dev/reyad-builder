@@ -2,6 +2,7 @@ import type { Editor } from 'grapesjs';
 import type { IEditorAdapter } from '../../editor/types';
 import type { SanitizedDocument } from './types';
 import { DEFAULT_CANVAS_CSS } from '../../editor/editorConfig';
+import { detectDocumentLanguageAndDirection } from './directionDetector';
 
 /**
  * Loads a SanitizedDocument into the editor canvas:
@@ -33,15 +34,14 @@ export function loadSanitizedDocumentIntoAdapter(
 
   adapter.clearSelection();
 
-  const hasArabic =
-    doc.lang === 'ar' ||
-    /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(
-      doc.bodyHtml || ''
-    ) ||
-    /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(doc.css || '');
-
-  const targetDir: 'rtl' | 'ltr' =
-    doc.dir === 'ltr' ? 'ltr' : doc.dir === 'rtl' || hasArabic ? 'rtl' : 'ltr';
+  let targetDir: 'rtl' | 'ltr';
+  if (doc.dir === 'rtl' || doc.dir === 'ltr') {
+    targetDir = doc.dir;
+  } else {
+    const combined = `${doc.bodyHtml || ''} ${doc.css || ''}`;
+    const detected = detectDocumentLanguageAndDirection(combined);
+    targetDir = detected.direction;
+  }
   const isRtl = targetDir === 'rtl';
 
   const rtlCanvasCss = isRtl ? `\nhtml[dir="rtl"], body[dir="rtl"] {\n  direction: rtl;\n}\n` : '';

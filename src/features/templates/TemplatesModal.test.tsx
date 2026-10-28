@@ -8,7 +8,7 @@ import type { IEditorAdapter } from '../../editor/types';
 describe('TemplatesModal Component', () => {
   const mockAdapter: Partial<IEditorAdapter> = {
     loadTemplate: vi.fn(),
-    resetToBlank: vi.fn(),
+    resetToBlank: vi.fn()
   };
 
   beforeEach(() => {
@@ -17,7 +17,7 @@ describe('TemplatesModal Component', () => {
       isTemplatesModalOpen: true,
       currentProjectId: 'test-proj',
       currentProjectName: 'Untitled Project',
-      isDirty: false,
+      isDirty: false
     });
   });
 

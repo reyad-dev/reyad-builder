@@ -9,13 +9,23 @@ import {
   detectDocumentFonts,
   createLocalFontFaceCss,
   injectFontFaceCss,
-  type DetectedFont,
+  type DetectedFont
 } from '../../domain/document/fontDetector';
+import {
+  detectDocumentLanguageAndDirection,
+  type DirectionDetectionResult
+} from '../../domain/document/directionDetector';
 import './import.css';
 
 export function ImportModal(): ReactElement | null {
-  const { isImportModalOpen, setImportModalOpen, isDirty, setIsDirty, setCurrentProject, setCurrentDirection } =
-    useUiStore();
+  const {
+    isImportModalOpen,
+    setImportModalOpen,
+    isDirty,
+    setIsDirty,
+    setCurrentProject,
+    setCurrentDirection
+  } = useUiStore();
   const { adapter } = useEditor();
 
   const [activeTab, setActiveTab] = useState<'upload' | 'paste'>('upload');
@@ -26,8 +36,9 @@ export function ImportModal(): ReactElement | null {
   const [stagedDoc, setStagedDoc] = useState<SanitizedDocument | null>(null);
   const [showDirtyConfirm, setShowDirtyConfirm] = useState(false);
 
-  // Direction and Font Detection State (First-Class Arabic RTL & Custom Fonts)
+  // Direction and Font Detection State (Intelligent Arabic RTL vs English LTR)
   const [selectedDirection, setSelectedDirection] = useState<'rtl' | 'ltr'>('rtl');
+  const [detectedMeta, setDetectedMeta] = useState<DirectionDetectionResult | null>(null);
   const [detectedFonts, setDetectedFonts] = useState<DetectedFont[]>([]);
   const [localFontCss, setLocalFontCss] = useState<string>('');
   const [loadedLocalFonts, setLoadedLocalFonts] = useState<Record<string, string>>({});
@@ -56,11 +67,12 @@ export function ImportModal(): ReactElement | null {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isImportModalOpen]);
 
-  // Real-time font detection and direction detection on input change
+  // Real-time font detection and language/direction detection on input change
   useEffect(() => {
     const rawHtml = activeTab === 'upload' ? uploadedHtml : pastedHtml;
     if (!rawHtml || !rawHtml.trim()) {
       setDetectedFonts([]);
+      setDetectedMeta(null);
       return;
     }
 
@@ -68,18 +80,9 @@ export function ImportModal(): ReactElement | null {
       const fonts = detectDocumentFonts(rawHtml);
       setDetectedFonts(fonts);
 
-      // Priority for Arabic RTL: if Arabic chars or dir="rtl", select RTL
-      const hasArabic =
-        /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(rawHtml) ||
-        /dir=["']rtl["']/i.test(rawHtml) ||
-        /lang=["']ar/i.test(rawHtml);
-
-      // If document explicitly sets LTR and has no Arabic, use LTR; otherwise default to RTL
-      if (/dir=["']ltr["']/i.test(rawHtml) && !hasArabic) {
-        setSelectedDirection('ltr');
-      } else {
-        setSelectedDirection('rtl');
-      }
+      const detection = detectDocumentLanguageAndDirection(rawHtml);
+      setDetectedMeta(detection);
+      setSelectedDirection(detection.direction);
     } catch {
       // Safe fallback for detection errors
     }
@@ -143,7 +146,9 @@ export function ImportModal(): ReactElement | null {
 
         // Inject into canvas iframe if available
         const canvasDoc =
-          (adapter as unknown as { Canvas?: { getDocument?: () => Document } })?.Canvas?.getDocument?.() || null;
+          (
+            adapter as unknown as { Canvas?: { getDocument?: () => Document } }
+          )?.Canvas?.getDocument?.() || null;
         injectFontFaceCss(cssSnippet, fontName, canvasDoc);
         setFontUploadMessage(`✓ تم تفعيل الخط "${fontName}" بنجاح من الملف المحلي!`);
       }
@@ -159,14 +164,19 @@ export function ImportModal(): ReactElement | null {
 
     try {
       const finalDir = selectedDirection;
+      const detectedLang =
+        doc.lang || (detectedMeta ? detectedMeta.language : finalDir === 'rtl' ? 'ar' : 'en');
       const combinedCss = localFontCss
-        ? (doc.css ? `${doc.css}\n${localFontCss}` : localFontCss)
+        ? doc.css
+          ? `${doc.css}\n${localFontCss}`
+          : localFontCss
         : doc.css;
 
       const docToLoad: SanitizedDocument = {
         ...doc,
         dir: finalDir,
-        css: combinedCss,
+        lang: detectedLang,
+        css: combinedCss
       };
 
       loadSanitizedDocumentIntoAdapter(adapter, docToLoad);
@@ -183,11 +193,11 @@ export function ImportModal(): ReactElement | null {
           sourceType: activeTab === 'upload' ? 'file' : 'paste',
           originalFileName: activeTab === 'upload' ? uploadedFileName || undefined : undefined,
           importedTitle: doc.title,
-          importedLang: doc.lang || (finalDir === 'rtl' ? 'ar' : undefined),
+          importedLang: detectedLang,
           importedDir: finalDir,
           externalStylesheets: doc.externalStylesheets || [],
-          importWarnings: doc.warnings || [],
-        },
+          importWarnings: doc.warnings || []
+        }
       });
       setIsDirty(false);
       handleClose();
@@ -202,29 +212,30 @@ export function ImportModal(): ReactElement | null {
     setErrorMessage(null);
     const rawHtml =
       activeTab === 'upload'
-        ? (uploadedHtml && uploadedHtml.trim() ? uploadedHtml : pastedHtml)
-        : (pastedHtml && pastedHtml.trim() ? pastedHtml : uploadedHtml);
+        ? uploadedHtml && uploadedHtml.trim()
+          ? uploadedHtml
+          : pastedHtml
+        : pastedHtml;
 
     if (!rawHtml || !rawHtml.trim()) {
-      setErrorMessage('Please provide HTML content to import.');
+      setErrorMessage('Please provide HTML markup or upload an HTML file.');
       return;
     }
 
     try {
-      // Transactional parsing: failures throw and leave current project untouched (AC-IMPORT-008)
-      const doc = importDocument(rawHtml);
-      setStagedDoc(doc);
+      const sanitized = importDocument(rawHtml);
 
-      // Check dirty confirmation guard (AC-IMPORT-009 / T-0314)
+      // If user has unsaved changes, prompt confirmation first (AC-IMPORT-009)
       if (isDirty) {
+        setStagedDoc(sanitized);
         setShowDirtyConfirm(true);
         return;
       }
 
-      executeImport(doc);
+      executeImport(sanitized);
     } catch (err) {
       setErrorMessage(
-        `Import failed: ${err instanceof Error ? err.message : String(err)}. Your current project was left untouched.`
+        `Import failed: ${err instanceof Error ? err.message : 'Unknown parsing error'}`
       );
     }
   };
@@ -237,23 +248,33 @@ export function ImportModal(): ReactElement | null {
 
   const handleCancelReplace = (): void => {
     setShowDirtyConfirm(false);
+    setStagedDoc(null);
   };
 
-  const currentContent = activeTab === 'upload' ? uploadedHtml : pastedHtml;
-  const hasContent = Boolean(currentContent && currentContent.trim());
+  const hasContent = Boolean(
+    activeTab === 'upload'
+      ? (uploadedHtml && uploadedHtml.trim()) || uploadedFileName
+      : pastedHtml && pastedHtml.trim()
+  );
 
   return (
     <div
       className="modal-backdrop"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="import-modal-title"
-      data-testid="import-modal"
+      onClick={handleClose}
+      role="presentation"
+      data-testid="import-modal-backdrop"
     >
-      <div className="import-modal">
+      <div
+        className="import-modal"
+        role="dialog"
+        aria-labelledby="import-dialog-title"
+        aria-modal="true"
+        onClick={(e) => e.stopPropagation()}
+        data-testid="import-modal-dialog"
+      >
         {/* Header */}
         <div className="modal-header">
-          <h2 id="import-modal-title" className="modal-title">
+          <h2 id="import-dialog-title" className="modal-title">
             Import HTML Document
           </h2>
           <button
@@ -281,47 +302,41 @@ export function ImportModal(): ReactElement | null {
           </button>
         </div>
 
-        {/* Tab Selection: Upload File first, then Paste HTML */}
-        <div className="modal-tabs" role="tablist">
+        {/* Tab Navigation */}
+        <div className="modal-tabs" role="tablist" aria-label="Import methods">
           <button
             type="button"
             role="tab"
             aria-selected={activeTab === 'upload'}
             className={`modal-tab-btn ${activeTab === 'upload' ? 'active' : ''}`}
-            onClick={() => {
-              setActiveTab('upload');
-              setErrorMessage(null);
-              setShowDirtyConfirm(false);
-            }}
+            onClick={() => setActiveTab('upload')}
             data-testid="tab-upload"
           >
-            Upload File
+            Upload File (.html)
           </button>
           <button
             type="button"
             role="tab"
             aria-selected={activeTab === 'paste'}
             className={`modal-tab-btn ${activeTab === 'paste' ? 'active' : ''}`}
-            onClick={() => {
-              setActiveTab('paste');
-              setErrorMessage(null);
-              setShowDirtyConfirm(false);
-            }}
+            onClick={() => setActiveTab('paste')}
             data-testid="tab-paste"
           >
-            Paste HTML
+            Paste Markup
           </button>
         </div>
 
-        {/* Content Body */}
+        {/* Modal Body */}
         <div className="modal-body">
+          {/* Top Error Alert Banner */}
           {errorMessage && (
             <div className="import-banner error" role="alert" data-testid="import-error-banner">
-              <strong>Error:</strong> {errorMessage}
+              <strong>Error: </strong>
+              {errorMessage}
             </div>
           )}
 
-          {/* Dirty State Warning Banner (AC-IMPORT-009) */}
+          {/* Unsaved Changes Confirmation Banner (AC-IMPORT-009) */}
           {showDirtyConfirm && (
             <div
               className="import-banner dirty-confirm"
@@ -435,7 +450,12 @@ export function ImportModal(): ReactElement | null {
           <div style={{ display: activeTab === 'paste' ? 'block' : 'none' }}>
             <label
               htmlFor="import-paste-input"
-              style={{ display: 'block', marginBottom: '8px', fontSize: '0.875rem', color: '#94a3b8' }}
+              style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontSize: '0.875rem',
+                color: 'var(--text-secondary)'
+              }}
             >
               Paste HTML source markup or document fragment:
             </label>
@@ -455,30 +475,48 @@ export function ImportModal(): ReactElement | null {
             />
           </div>
 
-          {/* Direction Configuration (Priority to Arabic RTL) */}
+          {/* Direction Configuration with Intelligent Auto-Detection Badge */}
           {hasContent && (
             <div className="import-direction-section" data-testid="import-direction-section">
-              <span className="import-section-title">اتجاه التصميم (Document Direction):</span>
+              <div className="import-section-title-row">
+                <span className="import-section-title">اتجاه المستند (Document Direction):</span>
+                {detectedMeta && (
+                  <span
+                    className={`detection-status-pill ${detectedMeta.isArabic ? 'arabic' : 'english'}`}
+                    data-testid="detected-direction-pill"
+                  >
+                    {detectedMeta.isArabic
+                      ? '✨ تم التعرف تلقائياً: محتوى عربي (RTL)'
+                      : '✨ Auto-detected: English / LTR'}
+                  </span>
+                )}
+              </div>
               <div className="import-direction-radios">
-                <label className={`direction-option ${selectedDirection === 'rtl' ? 'active' : ''}`}>
+                <label
+                  className={`direction-option ${selectedDirection === 'rtl' ? 'active' : ''}`}
+                >
                   <input
                     type="radio"
                     name="import-direction"
                     value="rtl"
                     checked={selectedDirection === 'rtl'}
                     onChange={() => setSelectedDirection('rtl')}
+                    data-testid="radio-dir-rtl"
                   />
-                  <span>عربي / من اليمين لليسار (RTL) - الأولوية الافتراضية</span>
+                  <span>عربي / من اليمين لليسار (RTL)</span>
                 </label>
-                <label className={`direction-option ${selectedDirection === 'ltr' ? 'active' : ''}`}>
+                <label
+                  className={`direction-option ${selectedDirection === 'ltr' ? 'active' : ''}`}
+                >
                   <input
                     type="radio"
                     name="import-direction"
                     value="ltr"
                     checked={selectedDirection === 'ltr'}
                     onChange={() => setSelectedDirection('ltr')}
+                    data-testid="radio-dir-ltr"
                   />
-                  <span>من اليسار لليمين (LTR)</span>
+                  <span>إنجليزي / من اليسار لليمين (LTR)</span>
                 </label>
               </div>
             </div>
@@ -527,7 +565,9 @@ export function ImportModal(): ReactElement | null {
                             className="font-upload-label"
                             title="تحميل ملف الخط محلياً (.woff2, .woff, .ttf, .otf)"
                           >
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                            <span
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                            >
                               <svg
                                 xmlns="http://www.w3.org/2000/svg"
                                 width="14"
@@ -579,7 +619,7 @@ export function ImportModal(): ReactElement | null {
             onClick={handleImportSubmit}
             disabled={
               activeTab === 'upload'
-                ? (!uploadedHtml.trim() && !pastedHtml.trim())
+                ? !uploadedHtml.trim() && !pastedHtml.trim()
                 : !pastedHtml.trim()
             }
             data-testid="btn-import-submit"

@@ -34,7 +34,9 @@
   --status-error: #ef4444;
 
   /* Typography Scale */
-  --font-sans: 'Alexandria', 'Cairo', 'Tajawal', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans:
+    'Alexandria', 'Cairo', 'Tajawal', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
   /* Refined Elevation & Shadows for Light Mode */
@@ -51,6 +53,22 @@
 
   --transition-fast: 150ms cubic-bezier(0.16, 1, 0.3, 1);
   --transition-normal: 250ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* GrapesJS Light Mode Overrides */
+  --gjs-main-color: #f8fafc;
+  --gjs-primary-color: #ffffff;
+  --gjs-secondary-color: #334155;
+  --gjs-font-color: #1e293b;
+  --gjs-font-color-active: #059669;
+  --gjs-arrow-color: #475569;
+  --gjs-secondary-light-color: #475569;
+  --gjs-color-blue: #10b981;
+  --gjs-color-highlight: #10b981;
+  --gjs-light-border: #e2e8f0;
+  --gjs-main-dark-color: rgba(15, 23, 42, 0.06);
+  --gjs-secondary-dark-color: rgba(15, 23, 42, 0.03);
+  --gjs-main-light-color: rgba(15, 23, 42, 0.04);
+  --gjs-placeholder-background-color: #10b981;
 }
 
 *,
@@ -96,4 +114,3 @@ body,
   border: 2px solid #f1f5f9;
   background-clip: content-box;
 }
-

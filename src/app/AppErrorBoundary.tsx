@@ -1,42 +1,50 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 
-interface Props {
+export interface AppErrorBoundaryProps {
   children: ReactNode;
   fallback?: ReactNode;
+  onError?: (error: Error, errorInfo: ErrorInfo) => void;
 }
 
-interface State {
+interface AppErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
   errorInfo: ErrorInfo | null;
 }
 
-export class AppErrorBoundary extends Component<Props, State> {
-  public override state: State = {
+/**
+ * Top-level React Error Boundary.
+ * Catches unhandled runtime exceptions in the component tree,
+ * logs diagnostics, and displays a graceful fallback screen with recovery actions.
+ */
+export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorBoundaryState> {
+  public override state: AppErrorBoundaryState = {
     hasError: false,
     error: null,
     errorInfo: null
   };
 
-  public static getDerivedStateFromError(error: Error): State {
-    return {
-      hasError: true,
-      error,
-      errorInfo: null
-    };
+  public static getDerivedStateFromError(error: Error): Partial<AppErrorBoundaryState> {
+    return { hasError: true, error };
   }
 
   public override componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     this.setState({ errorInfo });
-    // Keep console log clean while retaining debug context
-    console.error('Uncaught error caught by AppErrorBoundary:', error, errorInfo);
+
+    // Optional consumer callback for error telemetry
+    this.props.onError?.(error, errorInfo);
+
+    // Console logging for diagnostics
+    if (process.env.NODE_ENV !== 'test') {
+      console.error('Unhandled application error captured by AppErrorBoundary:', error, errorInfo);
+    }
   }
 
-  private handleReload = (): void => {
+  public handleReload = (): void => {
     window.location.reload();
   };
 
-  private handleReset = (): void => {
+  public handleReset = (): void => {
     this.setState({ hasError: false, error: null, errorInfo: null });
   };
 
@@ -56,21 +64,20 @@ export class AppErrorBoundary extends Component<Props, State> {
             justifyContent: 'center',
             minHeight: '100vh',
             padding: '2rem',
-            background: 'radial-gradient(ellipse at top, #1e1b4b 0%, #0a0c10 70%)',
-            color: '#f8fafc',
-            fontFamily: 'Inter, sans-serif'
+            background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)',
+            color: '#0f172a',
+            fontFamily: "'Alexandria', 'Cairo', 'Inter', -apple-system, sans-serif"
           }}
         >
           <div
             style={{
               maxWidth: '640px',
               width: '100%',
-              backgroundColor: 'rgba(24, 29, 40, 0.85)',
-              backdropFilter: 'blur(16px)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
+              backgroundColor: '#ffffff',
+              border: '1px solid #e2e8f0',
               borderRadius: '16px',
               padding: '2.5rem',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+              boxShadow: '0 20px 45px -10px rgba(15, 23, 42, 0.12)'
             }}
           >
             <div
@@ -79,15 +86,16 @@ export class AppErrorBoundary extends Component<Props, State> {
                 alignItems: 'center',
                 gap: '8px',
                 padding: '4px 12px',
-                backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                color: '#f87171',
+                backgroundColor: '#fef2f2',
+                color: '#b91c1c',
+                border: '1px solid #fecaca',
                 borderRadius: '9999px',
                 fontSize: '0.85rem',
                 fontWeight: 600,
                 marginBottom: '1rem'
               }}
             >
-              Application Error
+              Application Error • حدث خطأ غير متوقع
             </div>
 
             <h1
@@ -95,7 +103,8 @@ export class AppErrorBoundary extends Component<Props, State> {
                 fontSize: '1.75rem',
                 fontWeight: 700,
                 marginBottom: '0.75rem',
-                letterSpacing: '-0.025em'
+                letterSpacing: '-0.025em',
+                color: '#0f172a'
               }}
             >
               Something went wrong
@@ -103,7 +112,7 @@ export class AppErrorBoundary extends Component<Props, State> {
 
             <p
               style={{
-                color: '#94a3b8',
+                color: '#475569',
                 fontSize: '0.95rem',
                 lineHeight: 1.6,
                 marginBottom: '1.5rem'
@@ -117,8 +126,8 @@ export class AppErrorBoundary extends Component<Props, State> {
               <pre
                 data-testid="error-message"
                 style={{
-                  backgroundColor: '#0a0c10',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  backgroundColor: '#0f172a',
+                  border: '1px solid #334155',
                   padding: '1rem',
                   borderRadius: '8px',
                   fontSize: '0.82rem',
@@ -141,7 +150,7 @@ export class AppErrorBoundary extends Component<Props, State> {
                 style={{
                   padding: '0.65rem 1.25rem',
                   borderRadius: '8px',
-                  backgroundColor: '#3b82f6',
+                  backgroundColor: '#10b981',
                   color: '#ffffff',
                   fontWeight: 600,
                   fontSize: '0.9rem',
@@ -158,11 +167,11 @@ export class AppErrorBoundary extends Component<Props, State> {
                 style={{
                   padding: '0.65rem 1.25rem',
                   borderRadius: '8px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                  color: '#f8fafc',
+                  backgroundColor: '#ffffff',
+                  color: '#334155',
                   fontWeight: 600,
                   fontSize: '0.9rem',
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  border: '1px solid #cbd5e1',
                   cursor: 'pointer',
                   transition: 'background-color 150ms ease'
                 }}

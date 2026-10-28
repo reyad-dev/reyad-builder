@@ -30,12 +30,12 @@ describe('ImportModal Component (Epic 3)', () => {
       select: vi.fn(),
       clearSelection: vi.fn(),
       on: vi.fn().mockReturnValue(() => {}),
-      getExportSnapshot: vi.fn().mockReturnValue({ bodyHtml: '', css: '' }),
+      getExportSnapshot: vi.fn().mockReturnValue({ bodyHtml: '', css: '' })
     };
 
     useUiStore.setState({
       isImportModalOpen: true,
-      isDirty: false,
+      isDirty: false
     });
   });
 
@@ -79,7 +79,7 @@ describe('ImportModal Component (Epic 3)', () => {
 
     const textarea = screen.getByTestId('import-paste-textarea');
     fireEvent.change(textarea, {
-      target: { value: '<header class="hero"><h1>Imported Title</h1></header>' },
+      target: { value: '<header class="hero"><h1>Imported Title</h1></header>' }
     });
 
     const submitBtn = screen.getByTestId('btn-import-submit');
@@ -108,8 +108,8 @@ describe('ImportModal Component (Epic 3)', () => {
             </head>
             <body><p>Content</p></body>
           </html>
-        `,
-      },
+        `
+      }
     });
 
     const submitBtn = screen.getByTestId('btn-import-submit');
@@ -139,7 +139,9 @@ describe('ImportModal Component (Epic 3)', () => {
 
     // Confirmation banner should appear
     expect(screen.getByTestId('import-dirty-confirm')).toBeInTheDocument();
-    expect(screen.getByText(/You have unsaved changes in your current project/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/You have unsaved changes in your current project/i)
+    ).toBeInTheDocument();
 
     // Confirm replacement
     const confirmBtn = screen.getByTestId('btn-confirm-replace');
@@ -171,7 +173,7 @@ describe('ImportModal Component (Epic 3)', () => {
 
     const fileInput = screen.getByTestId('import-file-input');
     const file = new File(['<section>Uploaded HTML Section</section>'], 'landing.html', {
-      type: 'text/html',
+      type: 'text/html'
     });
 
     fireEvent.change(fileInput, { target: { files: [file] } });

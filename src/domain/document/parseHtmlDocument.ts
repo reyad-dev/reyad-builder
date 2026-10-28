@@ -1,11 +1,12 @@
 import type { DocumentMeta, ImportWarning } from './types';
+import { detectDocumentLanguageAndDirection } from './directionDetector';
 import {
   createExternalStylesheetWarning,
   createMalformedHtmlWarning,
   createRemoteAssetWarning,
   createScriptWarning,
   createEmbedWarning,
-  createEventHandlerWarning,
+  createEventHandlerWarning
 } from './warnings';
 
 export interface ParsedDocumentData {
@@ -30,7 +31,7 @@ export function parseHtmlDocument(rawHtml: string): ParsedDocumentData {
       bodyHtml: '',
       css: '',
       externalStylesheets: [],
-      warnings: [],
+      warnings: []
     };
   }
 
@@ -54,12 +55,10 @@ export function parseHtmlDocument(rawHtml: string): ParsedDocumentData {
   const rawLang = htmlEl?.getAttribute('lang') || undefined;
   const rawDir = htmlEl?.getAttribute('dir') || doc.body?.getAttribute('dir') || undefined;
 
-  // First-class priority for Arabic & RTL support
-  const hasArabicChars = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(rawHtml);
-  const isRtl = rawDir?.toLowerCase() === 'rtl' || rawLang?.toLowerCase().startsWith('ar') || hasArabicChars;
-
-  const dir = rawDir ? rawDir.toLowerCase() : (isRtl ? 'rtl' : undefined);
-  const lang = rawLang || (isRtl ? 'ar' : undefined);
+  // Intelligent Language & Direction Detection (Arabic RTL vs English LTR)
+  const detection = detectDocumentLanguageAndDirection(rawHtml);
+  const dir = rawDir ? rawDir.toLowerCase() : detection.direction;
+  const lang = rawLang || detection.language;
 
   // Extract safe <meta> tags
   const meta: DocumentMeta[] = [];
@@ -99,7 +98,9 @@ export function parseHtmlDocument(rawHtml: string): ParsedDocumentData {
   const css = cssBlocks.join('\n\n');
 
   // Detect remote media assets (http/https) to warn about offline rendering
-  const remoteMediaElements = doc.querySelectorAll('img[src^="http"], audio[src^="http"], video[src^="http"], source[src^="http"]');
+  const remoteMediaElements = doc.querySelectorAll(
+    'img[src^="http"], audio[src^="http"], video[src^="http"], source[src^="http"]'
+  );
   if (remoteMediaElements.length > 0) {
     warnings.push(createRemoteAssetWarning(remoteMediaElements.length));
   }
@@ -146,6 +147,6 @@ export function parseHtmlDocument(rawHtml: string): ParsedDocumentData {
     bodyHtml,
     css,
     externalStylesheets,
-    warnings,
+    warnings
   };
 }

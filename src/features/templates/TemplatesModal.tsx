@@ -2,15 +2,12 @@ import { useState, useEffect, type ReactElement } from 'react';
 import { useUiStore } from '../../state/uiStore';
 import { useEditor } from '../../editor/EditorContext';
 import { EXAMPLE_TEMPLATES, type ExampleTemplate } from '../../data/templates/exampleTemplates';
+import { detectDocumentLanguageAndDirection } from '../../domain/document/directionDetector';
 import './templates.css';
 
 export function TemplatesModal(): ReactElement | null {
-  const {
-    isTemplatesModalOpen,
-    setTemplatesModalOpen,
-    setCurrentProject,
-    setIsDirty,
-  } = useUiStore();
+  const { isTemplatesModalOpen, setTemplatesModalOpen, setCurrentProject, setIsDirty } =
+    useUiStore();
   const { adapter } = useEditor();
 
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -52,10 +49,22 @@ export function TemplatesModal(): ReactElement | null {
       adapter.resetToBlank();
     }
 
+    const detected = detectDocumentLanguageAndDirection(`${template.html} ${template.css || ''}`);
+    adapter.setDirection?.(detected.direction);
+
     setCurrentProject({
       id: `template-${template.id}-${Date.now()}`,
       name: template.title,
+      sourceMeta: {
+        sourceType: 'blank',
+        importedTitle: template.title,
+        importedLang: detected.language,
+        importedDir: detected.direction,
+        externalStylesheets: [],
+        importWarnings: []
+      }
     });
+    useUiStore.getState().setCurrentDirection(detected.direction);
     setIsDirty(true);
     setLoadedTemplateId(template.id);
 
@@ -106,7 +115,8 @@ export function TemplatesModal(): ReactElement | null {
               Starter Examples &amp; Templates (قوالب وأمثلة جاهزة)
             </h2>
             <p className="templates-modal-subtitle">
-              Select any pre-built example to instantly load a complete, responsive layout onto your canvas.
+              Select any pre-built example to instantly load a complete, responsive layout onto your
+              canvas.
             </p>
           </div>
           <button
@@ -145,7 +155,7 @@ export function TemplatesModal(): ReactElement | null {
                 aria-selected={selectedCategory === cat}
                 className={`templates-cat-btn ${selectedCategory === cat ? 'active' : ''}`}
                 onClick={() => setSelectedCategory(cat)}
-                data-testid={`tab-cat-${cat.toLowerCase().replace(/\\s+/g, '-')}`}
+                data-testid={`tab-cat-${cat.toLowerCase().replace(/\s+/g, '-')}`}
               >
                 {cat}
               </button>
@@ -176,9 +186,13 @@ export function TemplatesModal(): ReactElement | null {
 
                   <div className="template-card-content">
                     <h3 className="template-card-title">{template.title}</h3>
-                    <h4 className="template-card-title-ar" dir="rtl">{template.titleAr}</h4>
+                    <h4 className="template-card-title-ar" dir="rtl">
+                      {template.titleAr}
+                    </h4>
                     <p className="template-card-desc">{template.description}</p>
-                    <p className="template-card-desc-ar" dir="rtl">{template.descriptionAr}</p>
+                    <p className="template-card-desc-ar" dir="rtl">
+                      {template.descriptionAr}
+                    </p>
                   </div>
 
                   <div className="template-card-footer">
@@ -217,13 +231,10 @@ export function TemplatesModal(): ReactElement | null {
               <path d="M9 18h6" />
               <path d="M10 22h4" />
             </svg>
-            Tip: You can customize, inspect, duplicate, and export any template to HTML &amp; PDF immediately.
+            Tip: You can customize, inspect, duplicate, and export any template to HTML &amp; PDF
+            immediately.
           </span>
-          <button
-            type="button"
-            className="templates-footer-close-btn"
-            onClick={handleClose}
-          >
+          <button type="button" className="templates-footer-close-btn" onClick={handleClose}>
             Close
           </button>
         </div>

@@ -13,6 +13,7 @@ import { DEFAULT_BLANK_HTML, DEFAULT_CANVAS_CSS } from './editorConfig';
 import type { SanitizedDocument } from '../domain/document/types';
 import { detectDocumentFonts, injectFontStylesheet } from '../domain/document/fontDetector';
 import { createCustomCssParser } from '../domain/document/cssParser';
+import { detectDocumentLanguageAndDirection } from '../domain/document/directionDetector';
 
 const EXPANDED_GOOGLE_FONTS_URL =
   'https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;500;600;700&family=Almarai:wght@400;700&family=Amiri:ital,wght@0,400;0,700;1,400&family=Cairo:wght@400;500;600;700&family=Changa:wght@400;600;700&family=El+Messiri:wght@400;600;700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+Arabic:wght@400;600;700&family=Readex+Pro:wght@400;600;700&family=Rubik:wght@400;600;700&family=Tajawal:wght@400;500;700&display=swap';
@@ -334,16 +335,14 @@ export class EditorAdapter implements IEditorAdapter {
     this.importedDocCss = doc.css || '';
     this.clearSelection();
 
-    const hasArabic =
-      doc.lang === 'ar' ||
-      /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(
-        doc.bodyHtml || ''
-      ) ||
-      /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(doc.css || '');
-
-    // Priority for Arabic RTL: if explicitly LTR, respect LTR; otherwise if Arabic or explicit RTL, set RTL
-    const targetDir: 'rtl' | 'ltr' =
-      doc.dir === 'ltr' ? 'ltr' : doc.dir === 'rtl' || hasArabic ? 'rtl' : 'ltr';
+    let targetDir: 'rtl' | 'ltr';
+    if (doc.dir === 'rtl' || doc.dir === 'ltr') {
+      targetDir = doc.dir;
+    } else {
+      const combined = `${doc.bodyHtml || ''} ${doc.css || ''}`;
+      const detected = detectDocumentLanguageAndDirection(combined);
+      targetDir = detected.direction;
+    }
     this.currentDirection = targetDir;
     const isRtl = targetDir === 'rtl';
 
