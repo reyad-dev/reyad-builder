@@ -158,16 +158,13 @@ export function Workspace(): ReactElement {
       return;
     }
     const snapshot = adapter.getExportSnapshot();
-    const isArabicOrRtl =
-      currentSourceMeta.importedDir === 'rtl' ||
-      currentSourceMeta.importedLang?.startsWith('ar') ||
-      /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(snapshot.bodyHtml) ||
-      /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(snapshot.css);
 
+    // Use the editor's current direction; re-inferring it from Arabic characters would
+    // flip bilingual (side-by-side English/Arabic) layouts.
     printDocument({
       title: currentProjectName || 'Exported Document',
-      lang: currentSourceMeta.importedLang || (isArabicOrRtl ? 'ar' : 'en'),
-      dir: currentSourceMeta.importedDir || (isArabicOrRtl ? 'rtl' : undefined),
+      lang: currentSourceMeta.importedLang || (currentDirection === 'rtl' ? 'ar' : 'en'),
+      dir: currentDirection,
       bodyHtml: snapshot.bodyHtml,
       css: snapshot.css,
       externalStylesheets: currentSourceMeta.externalStylesheets,

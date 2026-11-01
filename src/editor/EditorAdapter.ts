@@ -11,7 +11,11 @@ import { VIEWPORT_DEVICES } from './devices';
 import { DEFAULT_BLOCKS } from './blocks';
 import { DEFAULT_BLANK_HTML, DEFAULT_CANVAS_CSS } from './editorConfig';
 import type { SanitizedDocument } from '../domain/document/types';
-import { detectDocumentFonts, injectFontStylesheet } from '../domain/document/fontDetector';
+import {
+  autoLoadMissingFonts,
+  detectDocumentFonts,
+  injectFontStylesheet
+} from '../domain/document/fontDetector';
 import { createCustomCssParser } from '../domain/document/cssParser';
 import { detectDocumentLanguageAndDirection } from '../domain/document/directionDetector';
 
@@ -399,17 +403,13 @@ export class EditorAdapter implements IEditorAdapter {
           }
         }
 
-        // Auto-detect fonts in doc and inject any known Google Fonts
+        // Auto-detect fonts this device lacks and load them from Google Fonts when available
         const detected = detectDocumentFonts(
           doc.bodyHtml || '',
           doc.css || '',
           doc.externalStylesheets || []
         );
-        for (const font of detected) {
-          if (font.googleFontsUrl) {
-            injectFontStylesheet(font.googleFontsUrl, canvasDoc);
-          }
-        }
+        void autoLoadMissingFonts(detected, canvasDoc).catch(() => undefined);
 
         // Auto-inject imported document CSS directly into canvas iframe head
         // to preserve CSS variables (:root), shorthands with var(), and complex selectors

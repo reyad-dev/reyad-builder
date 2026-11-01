@@ -85,4 +85,24 @@ describe('Language & Direction Detector (directionDetector)', () => {
     expect(result.direction).toBe('ltr');
     expect(result.language).toBe('en');
   });
+
+  const bilingualCv = (htmlAttrs: string): string => `
+    <html ${htmlAttrs}><head><style>
+      .container { display: flex; }
+      .en-cv { direction: ltr; } .ar-cv { direction: rtl; }
+    </style></head><body><div class="container">
+      <div class="en-cv"><h1>Ali Khalaf Al-Shammari</h1><p>Customer Service and Public Relations</p></div>
+      <div class="ar-cv"><h1>علي خلف الشمري</h1><p>خدمة العملاء والعلاقات العامة</p></div>
+    </div></body></html>`;
+
+  it('keeps an LTR root for bilingual documents that set direction per block', () => {
+    expect(detectDocumentLanguageAndDirection(bilingualCv('')).direction).toBe('ltr');
+    const withArabicLang = detectDocumentLanguageAndDirection(bilingualCv('lang="ar"'));
+    expect(withArabicLang.direction).toBe('ltr');
+    expect(withArabicLang.language).toBe('ar');
+  });
+
+  it('still honors an explicit dir="rtl" on bilingual documents', () => {
+    expect(detectDocumentLanguageAndDirection(bilingualCv('dir="rtl"')).direction).toBe('rtl');
+  });
 });

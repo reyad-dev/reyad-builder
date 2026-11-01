@@ -12,8 +12,13 @@ import {
 import './export.css';
 
 export function ExportModal(): ReactElement | null {
-  const { isExportModalOpen, setExportModalOpen, currentProjectName, currentSourceMeta } =
-    useUiStore();
+  const {
+    isExportModalOpen,
+    setExportModalOpen,
+    currentProjectName,
+    currentSourceMeta,
+    currentDirection
+  } = useUiStore();
   const { adapter } = useEditor();
 
   const [activeTab, setActiveTab] = useState<'pdf' | 'full' | 'body' | 'css'>('pdf');
@@ -77,17 +82,17 @@ export function ExportModal(): ReactElement | null {
   const bodyHtml = snapshot.bodyHtml || '';
   const css = snapshot.css || '';
 
-  const isArabicOrRtl =
-    currentSourceMeta.importedDir === 'rtl' ||
-    currentSourceMeta.importedLang?.startsWith('ar') ||
-    /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(bodyHtml) ||
-    /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(css);
+  // The editor's current direction (import detection or the toolbar toggle) is the single
+  // source of truth. Never re-infer it from Arabic characters: bilingual documents
+  // (e.g. side-by-side English/Arabic CVs) must keep the author's column order.
+  const docDir = currentDirection;
+  const docLang = currentSourceMeta.importedLang || (docDir === 'rtl' ? 'ar' : 'en');
 
   // Generate full standalone HTML document (T-0501)
   const fullHtml = exportStandaloneHtml({
     title: docTitle,
-    lang: currentSourceMeta.importedLang || (isArabicOrRtl ? 'ar' : 'en'),
-    dir: currentSourceMeta.importedDir || (isArabicOrRtl ? 'rtl' : undefined),
+    lang: docLang,
+    dir: docDir,
     bodyHtml,
     css,
     externalStylesheets: currentSourceMeta.externalStylesheets,
@@ -96,8 +101,8 @@ export function ExportModal(): ReactElement | null {
   // Generate specialized A4 simulation HTML document with anti-clipping rules
   const a4SimulationHtml = exportStandaloneHtml({
     title: docTitle,
-    lang: currentSourceMeta.importedLang || (isArabicOrRtl ? 'ar' : 'en'),
-    dir: currentSourceMeta.importedDir || (isArabicOrRtl ? 'rtl' : undefined),
+    lang: docLang,
+    dir: docDir,
     bodyHtml,
     css: `
       ${generateA4PrintCss({ orientation, pageMargin })}
@@ -171,6 +176,8 @@ export function ExportModal(): ReactElement | null {
   const handlePrintPdf = (): void => {
     printDocument({
       title: docTitle,
+      lang: docLang,
+      dir: docDir,
       bodyHtml,
       css,
       orientation,

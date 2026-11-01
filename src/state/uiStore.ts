@@ -52,6 +52,7 @@ export interface UiState {
   setSelectedComponent: (info: SelectedComponentInfo | null) => void;
 
   setProjectName: (name: string) => void;
+  addExternalStylesheets: (urls: string[]) => void;
   setCurrentProject: (meta: {
     id: string;
     name: string;
@@ -123,6 +124,20 @@ export const useUiStore = create<UiState>((set) => {
     setSelectedComponent: (info) => set({ selectedComponent: info }),
 
     setProjectName: (name) => set({ currentProjectName: name.trim() || 'Untitled Project', isDirty: true }),
+    addExternalStylesheets: (urls) =>
+      set((state) => {
+        const existing = state.currentSourceMeta.externalStylesheets || [];
+        const additions = urls.filter((url) => url && !existing.includes(url));
+        if (additions.length === 0) {
+          return {};
+        }
+        return {
+          currentSourceMeta: {
+            ...state.currentSourceMeta,
+            externalStylesheets: [...existing, ...additions],
+          },
+        };
+      }),
     setCurrentProject: (meta) =>
       set((state) => ({
         currentProjectId: meta.id,

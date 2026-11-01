@@ -290,3 +290,137 @@ export function injectFontFaceCss(
     canvasStyle.textContent = cssSnippet;
   }
 }
+
+export type FontAvailability = 'installed' | 'google-fonts' | 'missing';
+
+export interface FontResolution {
+  name: string;
+  availability: FontAvailability;
+  stylesheetUrl?: string | undefined;
+}
+
+/**
+ * Checks whether a font family is installed on this device by comparing rendered text
+ * widths against generic fallbacks. Returns false when measurement is unavailable (tests).
+ */
+export function isFontInstalledLocally(fontName: string): boolean {
+  if (typeof document === 'undefined') {
+    return false;
+  }
+  // Web fonts the editor UI itself loads would measure as "installed"; they are not
+  // available to the exported file, so treat them as not installed.
+  const lowerName = fontName.trim().toLowerCase();
+  const fontSet = document.fonts as unknown as Iterable<FontFace> | undefined;
+  if (fontSet && typeof fontSet[Symbol.iterator] === 'function') {
+    for (const face of fontSet) {
+      if (face.family.replace(/^['"]|['"]$/g, '').toLowerCase() === lowerName) {
+        return false;
+      }
+    }
+  }
+  let ctx: CanvasRenderingContext2D | null;
+  try {
+    ctx = document.createElement('canvas').getContext('2d');
+  } catch {
+    return false;
+  }
+  if (!ctx) {
+    return false;
+  }
+
+  const sample = 'mmmmmmmmmmlli WwQq 0123 عربي';
+  const safeName = fontName.replace(/["\\]/g, '');
+  for (const fallback of ['monospace', 'serif', 'sans-serif']) {
+    ctx.font = `72px ${fallback}`;
+    const baseline = ctx.measureText(sample).width;
+    ctx.font = `72px "${safeName}", ${fallback}`;
+    if (ctx.measureText(sample).width !== baseline) {
+      return true;
+    }
+  }
+  return false;
+}
+
+const googleFontsCache = new Map<string, Promise<string | null>>();
+
+/**
+ * Looks a font family up on Google Fonts. Resolves to a working stylesheet URL, or null
+ * when Google Fonts does not serve that family (or the network is unavailable).
+ */
+export function resolveGoogleFontStylesheet(fontName: string): Promise<string | null> {
+  const key = fontName.trim().toLowerCase();
+  const cached = googleFontsCache.get(key);
+  if (cached) {
+    return cached;
+  }
+
+  const family = encodeURIComponent(fontName.trim()).replace(/%20/g, '+');
+  const candidates = [
+    buildGoogleFontsUrl(fontName),
+    `https://fonts.googleapis.com/css2?family=${family}:wght@300;400;500;600;700&display=swap`,
+    `https://fonts.googleapis.com/css2?family=${family}&display=swap`
+  ];
+
+  const lookup = (async (): Promise<string | null> => {
+    if (typeof fetch !== 'function') {
+      return null;
+    }
+    for (const url of candidates) {
+      try {
+        const response = await fetch(url);
+        if (response.ok && (await response.text()).includes('@font-face')) {
+          return url;
+        }
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  })();
+
+  googleFontsCache.set(key, lookup);
+  return lookup;
+}
+
+/**
+ * Determines how each detected font can be displayed: already installed on the device,
+ * downloadable from Google Fonts, or missing (needs a manual upload).
+ */
+export async function resolveFontAvailability(fonts: DetectedFont[]): Promise<FontResolution[]> {
+  return Promise.all(
+    fonts.map(async (font): Promise<FontResolution> => {
+      if (font.source === 'font-face') {
+        // The document ships its own @font-face rule
+        return { name: font.name, availability: 'installed' };
+      }
+      if (font.source === 'google-fonts' && font.googleFontsUrl) {
+        return { name: font.name, availability: 'google-fonts', stylesheetUrl: font.googleFontsUrl };
+      }
+      if (isFontInstalledLocally(font.name)) {
+        return { name: font.name, availability: 'installed' };
+      }
+      const url = await resolveGoogleFontStylesheet(font.name);
+      return url
+        ? { name: font.name, availability: 'google-fonts', stylesheetUrl: url }
+        : { name: font.name, availability: 'missing' };
+    })
+  );
+}
+
+/**
+ * Finds every font the document uses that this device lacks, loads the ones Google Fonts
+ * serves into the editor canvas, and returns their stylesheet URLs so export and print
+ * can include them too.
+ */
+export async function autoLoadMissingFonts(
+  fonts: DetectedFont[],
+  canvasDoc?: Document | null
+): Promise<FontResolution[]> {
+  const resolutions = await resolveFontAvailability(fonts);
+  for (const resolution of resolutions) {
+    if (resolution.stylesheetUrl) {
+      injectFontStylesheet(resolution.stylesheetUrl, canvasDoc);
+    }
+  }
+  return resolutions;
+}

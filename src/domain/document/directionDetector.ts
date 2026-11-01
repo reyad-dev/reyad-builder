@@ -95,6 +95,19 @@ export function detectDocumentLanguageAndDirection(rawHtml: string): DirectionDe
   const arabicCharCount = arabicMatches.length;
   const latinCharCount = latinMatches.length;
 
+  // Bilingual documents that manage direction themselves (e.g. side-by-side English/Arabic
+  // CVs using `.ar-cv { direction: rtl }`) must keep the browser's default root direction
+  // (LTR); forcing RTL on the root would mirror the author's column order.
+  const totalLetters = arabicCharCount + latinCharCount;
+  const isBilingual =
+    totalLetters > 0 &&
+    arabicCharCount >= totalLetters * 0.25 &&
+    latinCharCount >= totalLetters * 0.25;
+  const hasAuthorDirectionRules =
+    /direction\s*:\s*(?:rtl|ltr)/i.test(rawHtml) ||
+    /<(?!html\b|body\b)[a-z][a-z0-9-]*\b[^>]*\sdir=["']?(?:rtl|ltr)/i.test(rawHtml);
+  const isAuthorManagedBilingual = isBilingual && hasAuthorDirectionRules;
+
   // 3. Heuristic Decision Matrix
 
   // Case A: Explicit dir="rtl" or explicit Arabic language
@@ -106,6 +119,17 @@ export function detectDocumentLanguageAndDirection(rawHtml: string): DirectionDe
       arabicCharCount,
       latinCharCount,
       detectedReason: 'Explicit dir="rtl" attribute in HTML'
+    };
+  }
+
+  if (!explicitDir && isAuthorManagedBilingual) {
+    return {
+      direction: 'ltr',
+      language: isExplicitArabicLang ? 'ar' : 'en',
+      isArabic: false,
+      arabicCharCount,
+      latinCharCount,
+      detectedReason: 'Bilingual Arabic/English document with its own direction rules (kept LTR root)'
     };
   }
 
@@ -123,7 +147,7 @@ export function detectDocumentLanguageAndDirection(rawHtml: string): DirectionDe
   // Case B: Explicit dir="ltr"
   if (explicitDir === 'ltr') {
     // If predominantly Arabic text content despite an old dir="ltr", prefer Arabic
-    if (arabicCharCount > 20 && arabicCharCount > latinCharCount * 2) {
+    if (!isAuthorManagedBilingual && arabicCharCount > 20 && arabicCharCount > latinCharCount * 2) {
       return {
         direction: 'rtl',
         language: 'ar',

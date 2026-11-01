@@ -9,7 +9,10 @@ import {
   detectDocumentFonts,
   createLocalFontFaceCss,
   injectFontFaceCss,
-  type DetectedFont
+  resolveFontAvailability,
+  autoLoadMissingFonts,
+  type DetectedFont,
+  type FontResolution
 } from '../../domain/document/fontDetector';
 import {
   detectDocumentLanguageAndDirection,
@@ -24,7 +27,8 @@ export function ImportModal(): ReactElement | null {
     isDirty,
     setIsDirty,
     setCurrentProject,
-    setCurrentDirection
+    setCurrentDirection,
+    addExternalStylesheets
   } = useUiStore();
   const { adapter } = useEditor();
 
@@ -40,6 +44,7 @@ export function ImportModal(): ReactElement | null {
   const [selectedDirection, setSelectedDirection] = useState<'rtl' | 'ltr'>('rtl');
   const [detectedMeta, setDetectedMeta] = useState<DirectionDetectionResult | null>(null);
   const [detectedFonts, setDetectedFonts] = useState<DetectedFont[]>([]);
+  const [fontResolutions, setFontResolutions] = useState<Record<string, FontResolution>>({});
   const [localFontCss, setLocalFontCss] = useState<string>('');
   const [loadedLocalFonts, setLoadedLocalFonts] = useState<Record<string, string>>({});
   const [fontUploadMessage, setFontUploadMessage] = useState<string | null>(null);
@@ -69,6 +74,7 @@ export function ImportModal(): ReactElement | null {
 
   // Real-time font detection and language/direction detection on input change
   useEffect(() => {
+    let cancelled = false;
     const rawHtml = activeTab === 'upload' ? uploadedHtml : pastedHtml;
     if (!rawHtml || !rawHtml.trim()) {
       setDetectedFonts([]);
@@ -79,6 +85,13 @@ export function ImportModal(): ReactElement | null {
     try {
       const fonts = detectDocumentFonts(rawHtml);
       setDetectedFonts(fonts);
+      setFontResolutions({});
+      void resolveFontAvailability(fonts)
+        .then((results) => {
+          if (cancelled) return;
+          setFontResolutions(Object.fromEntries(results.map((r) => [r.name, r])));
+        })
+        .catch(() => undefined);
 
       const detection = detectDocumentLanguageAndDirection(rawHtml);
       setDetectedMeta(detection);
@@ -86,6 +99,9 @@ export function ImportModal(): ReactElement | null {
     } catch {
       // Safe fallback for detection errors
     }
+    return () => {
+      cancelled = true;
+    };
   }, [uploadedHtml, pastedHtml, activeTab]);
 
   if (!isImportModalOpen) {
@@ -200,6 +216,27 @@ export function ImportModal(): ReactElement | null {
         }
       });
       setIsDirty(false);
+
+      // Load fonts this device lacks from Google Fonts and keep their stylesheets with the
+      // project, so the exported HTML and printed PDF render with the same fonts.
+      const canvasDoc =
+        (
+          adapter as unknown as { editor?: { Canvas?: { getDocument?: () => Document } } }
+        ).editor?.Canvas?.getDocument?.() || null;
+      void autoLoadMissingFonts(
+        detectDocumentFonts(doc.bodyHtml || '', doc.css || '', doc.externalStylesheets || []),
+        canvasDoc
+      )
+        .then((results) => {
+          const urls = results
+            .map((r) => r.stylesheetUrl)
+            .filter((url): url is string => Boolean(url));
+          if (urls.length > 0) {
+            addExternalStylesheets(urls);
+          }
+        })
+        .catch(() => undefined);
+
       handleClose();
     } catch (err) {
       setErrorMessage(
@@ -543,6 +580,7 @@ export function ImportModal(): ReactElement | null {
               <div className="detected-fonts-list">
                 {detectedFonts.map((font) => {
                   const isLocalLoaded = Boolean(loadedLocalFonts[font.name]);
+                  const resolution = fontResolutions[font.name];
                   return (
                     <div key={font.name} className="detected-font-card">
                       <div className="detected-font-info">
@@ -556,10 +594,15 @@ export function ImportModal(): ReactElement | null {
                           <span className="font-badge success">
                             ✓ مفعل محلياً ({loadedLocalFonts[font.name]})
                           </span>
-                        ) : font.isAvailableOnGoogleFonts ? (
+                        ) : resolution?.availability === 'installed' ? (
+                          <span className="font-badge success">✓ متوفر على الجهاز</span>
+                        ) : resolution?.availability === 'google-fonts' ||
+                          (!resolution && font.isAvailableOnGoogleFonts) ? (
                           <span className="font-badge google">
-                            ✓ متاح على Google Fonts (تفعيل تلقائي)
+                            ✓ متاح على Google Fonts (تحميل تلقائي)
                           </span>
+                        ) : !resolution ? (
+                          <span className="font-badge">جارٍ البحث عن الخط…</span>
                         ) : (
                           <label
                             className="font-upload-label"

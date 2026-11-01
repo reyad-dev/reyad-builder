@@ -197,7 +197,6 @@ export function generateA4PrintCss(options?: {
       margin: 0 !important;
       padding: 0 !important;
       background-color: #ffffff !important;
-      color: #0f172a !important;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
       overflow: visible !important;
@@ -310,8 +309,7 @@ export function printDocument(options: {
   doc.write(fullHtml);
   doc.close();
 
-  // Wait briefly for styles and fonts to paint before triggering print dialog
-  setTimeout(() => {
+  const triggerPrint = (): void => {
     try {
       iframe.contentWindow?.focus();
       iframe.contentWindow?.print();
@@ -324,5 +322,41 @@ export function printDocument(options: {
         }
       }, 2000);
     }
-  }, 350);
+  };
+
+  // Wait for web fonts and stylesheets to finish loading so the PDF is not rendered
+  // with fallback fonts (which changes line wrapping and spacing). Capped so a slow or
+  // offline font server never blocks printing.
+  void waitForDocumentAssets(doc, 4000).then(triggerPrint);
+}
+
+/**
+ * Resolves once the document's stylesheets and fonts have loaded, or after `timeoutMs`.
+ */
+export async function waitForDocumentAssets(doc: Document, timeoutMs: number): Promise<void> {
+  const timeout = new Promise<void>((resolve) => setTimeout(resolve, timeoutMs));
+
+  const assetsReady = (async (): Promise<void> => {
+    const links = Array.from(doc.querySelectorAll<HTMLLinkElement>('link[rel~="stylesheet"]'));
+    await Promise.all(
+      links.map(
+        (link) =>
+          new Promise<void>((resolve) => {
+            if (link.sheet) {
+              resolve();
+              return;
+            }
+            link.addEventListener('load', () => resolve(), { once: true });
+            link.addEventListener('error', () => resolve(), { once: true });
+          })
+      )
+    );
+    if (doc.fonts?.ready) {
+      await doc.fonts.ready;
+    }
+    // One extra frame so the final layout is painted before printing
+    await new Promise<void>((resolve) => setTimeout(resolve, 150));
+  })();
+
+  await Promise.race([assetsReady, timeout]);
 }
