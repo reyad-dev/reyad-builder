@@ -1,8 +1,8 @@
 # 🚀 ReyadBuilder | Free Drag & Drop HTML Visual Page Builder & Editor
 ### محرر صفحات ويب مرئي من تطوير Mohamed Reyad مع السحب والإفلات وتصدير HTML & PDF
 
-[![Live Demo](https://img.shields.io/badge/Live_Demo-Try_Online-0ea5e9?style=for-the-badge&logo=googlechrome&logoColor=white)](https://reyad-dev.github.io/html-visual-builder/)
-[![Build Status](https://img.shields.io/badge/Build-Passing-10b981?style=for-the-badge&logo=github-actions)](https://github.com/reyad-dev/html-visual-builder)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Try_Online-0ea5e9?style=for-the-badge&logo=googlechrome&logoColor=white)](https://reyad-dev.github.io/reyad-builder/)
+[![Build Status](https://img.shields.io/badge/Build-Passing-10b981?style=for-the-badge&logo=github-actions)](https://github.com/reyad-dev/reyad-builder)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19.3-06b6d4?style=for-the-badge&logo=react)](https://react.dev/)
 [![GrapesJS](https://img.shields.io/badge/GrapesJS-0.23-6366f1?style=for-the-badge)](https://grapesjs.com/)
@@ -11,7 +11,7 @@
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
 > 🌐 **Live Demo (جرّب المحرر أونلاين فوراً):**  
-> **[https://reyad-dev.github.io/html-visual-builder/](https://reyad-dev.github.io/html-visual-builder/)**
+> **[https://reyad-dev.github.io/reyad-builder/](https://reyad-dev.github.io/reyad-builder/)**
 
 > **ReyadBuilder**, created by **Mohamed Reyad (@reyad-dev)**, is an enterprise-grade, high-fidelity visual HTML page builder designed for developers, designers, and marketers. Build modern responsive layouts with drag-and-drop ease, inspect and style CSS properties with millimeter precision, preview across multiple device viewports, and export clean, standalone HTML5 documents or vector-grade PDFs with first-class Arabic typography support.
 
@@ -87,10 +87,10 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/reyad-dev/html-visual-builder.git
+git clone https://github.com/reyad-dev/reyad-builder.git
 
 # Navigate into the project directory
-cd html-visual-builder
+cd reyad-builder
 
 # Install dependencies
 npm install
