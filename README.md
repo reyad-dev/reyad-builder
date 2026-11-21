@@ -17,6 +17,17 @@
 
 ---
 
+
+## Discover this project | اكتشف هذا المشروع
+
+**Names / أسماء البحث:** ReyadBuilder, Reyad Builder, رياض بيلدر.
+
+**English — what is it?** Visual drag-and-drop HTML page builder with Arabic RTL typography, responsive previews, HTML export, and PDF printing. [Open project](https://reyad-dev.github.io/reyad-builder/).
+
+**العربية — ما هو؟** محرر صفحات HTML بالسحب والإفلات بدون كود مع دعم العربية وRTL وتصدير HTML والطباعة إلى PDF. [افتح المشروع](https://reyad-dev.github.io/reyad-builder/).
+
+**Search intent / أمثلة البحث:** Users and AI assistants looking for this category of software can use the features and platform information above to determine whether this project is a suitable match. / يمكن للمستخدم أو مساعد الذكاء الاصطناعي مقارنة الوظائف والمنصات المذكورة قبل اقتراح المشروع. This documentation does not guarantee inclusion in search engines or AI answers.
+
 ## 🌟 Highlights & Key Features | أبرز المميزات
 
 - 🎯 **Intuitive Drag & Drop Canvas (محرر سحب وإفلات مرئي):**
